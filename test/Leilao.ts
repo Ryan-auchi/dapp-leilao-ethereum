@@ -6,7 +6,7 @@ describe("LeilaoSimples", function () {
     const { ethers } = await network.getOrCreate();
     const [dono, usuario1, usuario2] = await ethers.getSigners();
     const Leilao = await ethers.getContractFactory("LeilaoSimples");
-    const leilao = await Leilao.deploy("Fiat Uno 2010");
+    const leilao = await Leilao.deploy("Fiat Uno 2010", dono.address);
     return { ethers, leilao, dono, usuario1, usuario2 };
   }
 
