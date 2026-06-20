@@ -3,7 +3,15 @@ import toolbox from "@nomicfoundation/hardhat-toolbox-mocha-ethers";
 import "dotenv/config";
 
 const config: HardhatUserConfig = {
-  solidity: "0.8.28",
+  solidity: {
+    version: "0.8.28",
+    settings: {
+      optimizer: {
+        enabled: true,
+        runs: 200,
+      },
+    },
+  },
   plugins: [toolbox],
   networks: {
     sepolia: {

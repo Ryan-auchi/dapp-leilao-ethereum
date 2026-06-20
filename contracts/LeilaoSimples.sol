@@ -9,7 +9,7 @@ contract LeilaoSimples is Ownable {
     uint public maiorLance;
     bool public leilaoEncerrado;
 
-    constructor(string memory _nomeDoItem) Ownable(msg.sender) {
+    constructor(string memory _nomeDoItem, address _vendedor) Ownable(_vendedor) {
         itemLeiloado = _nomeDoItem;
     }
 

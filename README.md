@@ -1,16 +1,27 @@
-# DApp Leilão Ethereum
+# DApp Leilão + DAO de Curadoria
 
-Aplicação descentralizada (DApp) de leilão desenvolvida com Solidity e Hardhat 3, implantada na testnet Sepolia. Trabalho 02 da disciplina de Tópicos Especiais em Computação - Blockchain (IFPI).
+Aplicação descentralizada (DApp) desenvolvida com Solidity e Hardhat 3, implantada na testnet Sepolia. Trabalhos 02 e 03 da disciplina de Tópicos Especiais em Computação - Blockchain (IFPI).
 
-## Contrato na Sepolia
+## Contratos na Sepolia
 
-**Endereço:** `0x17B97B3fBbD56180E58937AC3204BBC161d40aB6`
+### Trabalho 02 — Leilão
+| Contrato | Endereço |
+|---|---|
+| LeilaoSimples | `0x17B97B3fBbD56180E58937AC3204BBC161d40aB6` |
 
-Verificar em: https://sepolia.etherscan.io/address/0x17B97B3fBbD56180E58937AC3204BBC161d40aB6
+🔍 https://sepolia.etherscan.io/address/0x17B97B3fBbD56180E58937AC3204BBC161d40aB6
 
-## Como funciona
+### Trabalho 03 — DAO
+| Contrato | Endereço |
+|---|---|
+| CuradoriaToken | `0x847b0e870B379c5b3ee3Ef36F2896E8d08AF0a6F` |
+| CuradoriaDAO | `0xF06441B16F7c981a470084f26eBEcA3E31268817` |
 
-O contrato implementa um leilão simples onde:
+---
+
+## Trabalho 02 — Leilão
+
+### Como funciona
 
 - Qualquer pessoa pode dar um lance enviando Ether para o contrato
 - O lance precisa ser maior que o atual
@@ -18,32 +29,7 @@ O contrato implementa um leilão simples onde:
 - Apenas o dono do contrato pode encerrar o leilão
 - Ao encerrar, o maior lance é transferido para o dono
 
-## Tecnologias
-
-- Solidity 0.8.28
-- Hardhat 3
-- ethers.js v6
-- OpenZeppelin Contracts v5
-- TypeScript / Mocha
-
-## Pré-requisitos
-
-- Node.js 18+
-- npm
-
-## Instalação
-
-```bash
-npm install
-```
-
-## Rodar os testes
-
-```bash
-npx hardhat test
-```
-
-Os testes cobrem os seguintes cenários:
+### Testes (6 cenários)
 
 - Primeiro lance registrado corretamente
 - Lance menor que o atual é rejeitado
@@ -52,38 +38,88 @@ Os testes cobrem os seguintes cenários:
 - Conta que não é o dono não pode encerrar
 - Lance após leilão encerrado é rejeitado
 
-## Deploy na Sepolia
+---
 
-1. Crie um arquivo `.env` na raiz do projeto:
+## Trabalho 03 — DAO de Curadoria
+
+### Como funciona
+
+A DAO permite que detentores do token `CuradoriaToken` votem em propostas. Quando uma proposta é aprovada, a DAO automaticamente publica um novo contrato `LeilaoSimples` para o item aprovado.
+
+**Fluxo completo:**
+1. Qualquer pessoa propõe um item para leilão informando o nome e o endereço do vendedor
+2. Detentores do token votam a favor ou contra durante 100 blocos (~20 min na Sepolia)
+3. Se aprovada com quórum mínimo de 4%, qualquer pessoa pode executar a proposta
+4. A DAO publica automaticamente um novo `LeilaoSimples` com o vendedor como dono
+
+**Parâmetros de governança:**
+- Voting Delay: 1 bloco
+- Voting Period: 100 blocos
+- Quórum: 4% do total de tokens
+- Proposal Threshold: 0 (qualquer um pode propor)
+
+### Testes (6 cenários)
+
+- Ciclo completo: propor → votar → executar → leilão criado
+- Proposta rejeitada não pode ser executada
+- Voto duplo do mesmo eleitor é rejeitado
+- Execução antes do período de votação terminar é rejeitada
+- Mint de token por conta que não é o dono é rejeitado
+- Chamada direta a `executarDeployLeilao` sem passar pela DAO é rejeitada
+
+---
+
+## Tecnologias
+
+- Solidity 0.8.28
+- Hardhat 3
+- ethers.js v6
+- OpenZeppelin Contracts v5 (Ownable, Governor, ERC20Votes)
+- TypeScript / Mocha
+
+## Instalação
+
+```bash
+npm install
+```
+
+Crie um arquivo `.env` na raiz:
 
 ```
 PRIVATE_KEY=sua_chave_privada_da_metamask
 ```
 
-2. Obtenha ETH de teste em https://cloud.google.com/application/web3/faucet/ethereum/sepolia
+## Rodar os testes
 
-3. Execute o deploy:
+```bash
+npx hardhat test
+```
 
+## Deploy na Sepolia
+
+**Leilão (T02):**
 ```bash
 npx hardhat ignition deploy ignition/modules/LeilaoSimples.ts --network sepolia
 ```
 
-## Interagir com o contrato via Remix
+**DAO (T03):**
+```bash
+npx hardhat ignition deploy ignition/modules/Curadoria.ts --network sepolia
+```
+
+## Interagir via Remix
 
 1. Acesse https://remix.ethereum.org
-2. Crie um arquivo `LeilaoSimples.sol` na pasta `contracts` e cole o código do contrato
-3. Compile o contrato (aba Solidity Compiler)
-4. Na aba Deploy & Run:
-   - Selecione **Browser Extension** como ambiente
-   - Conecte a MetaMask na rede **Sepolia**
-   - Em **Deployed Contracts**, clique em **+ Add Contract**
-   - Cole o endereço: `0x17B97B3fBbD56180E58937AC3204BBC161d40aB6`
-5. Use as funções disponíveis:
-   - `darLance` — envie ETH para dar um lance
-   - `encerrarLeilao` — encerra o leilão (apenas o dono)
-   - `maiorLance` — consulta o valor do maior lance
-   - `maiorLancador` — consulta o endereço do maior lancador
-   - `leilaoEncerrado` — verifica se o leilão foi encerrado
+2. Cole o código do contrato, compile e vá na aba **Deploy & Run**
+3. Selecione **Browser Extension**, conecte a MetaMask na rede **Sepolia**
+4. Em **Deployed Contracts**, clique em **+ Add Contract** e cole o endereço
+
+**Funções do LeilaoSimples:**
+- `darLance` — envia ETH para dar um lance
+- `encerrarLeilao` — encerra o leilão (apenas o dono)
+- `maiorLance` — consulta o maior lance atual
+- `maiorLancador` — consulta quem está ganhando
+- `leilaoEncerrado` — verifica se o leilão foi encerrado
 
 ## Integrantes
 
