@@ -156,6 +156,9 @@ npx hardhat ignition deploy ignition/modules/Curadoria.ts --network sepolia
 - `maiorLancador` — consulta quem está ganhando
 - `leilaoEncerrado` — verifica se o leilão foi encerrado
 
-## Integrantes
+## Integrantes (Grupo 02)
 
-- (adicionar nomes do grupo)
+- Mateus Castro
+- Yago Braga
+- Francisco Junio
+- Ryan

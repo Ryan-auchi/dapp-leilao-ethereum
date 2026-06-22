@@ -320,6 +320,76 @@ a {
 .status-closed {
   background: #ffdede;
 }
+.status-ok {
+  background: #c9f7c5;
+}
+.status-pending {
+  background: #ffd23f;
+}
+
+/* ---------- Governança / Propostas ---------- */
+.section-title {
+  font-size: 1.3rem;
+  font-weight: 900;
+  letter-spacing: -0.5px;
+  margin-top: 8px;
+}
+.proposals-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 18px;
+}
+.proposal-card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.proposal-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  font-size: 1.05rem;
+}
+.vote-counts {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-weight: 700;
+  font-size: 0.9rem;
+  border-top: 1px dashed #ccc;
+  border-bottom: 1px dashed #ccc;
+  padding: 10px 0;
+}
+.vote-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.vote-actions .btn {
+  flex: 1;
+  padding: 8px 10px;
+  font-size: 0.85rem;
+}
+.proposal-foot {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.8rem;
+  margin-top: 4px;
+}
+.proposal-foot a {
+  color: var(--orange);
+  font-weight: 700;
+}
+.link-btn {
+  background: none;
+  border: none;
+  color: var(--orange);
+  font-weight: 700;
+  cursor: pointer;
+  font-size: 0.8rem;
+  font-family: inherit;
+}
 .leader-note {
   margin-top: 14px;
   font-weight: 700;

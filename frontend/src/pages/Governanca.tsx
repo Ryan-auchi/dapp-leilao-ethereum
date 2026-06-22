@@ -2,11 +2,18 @@ import { useEffect, useState } from "react";
 import { Contract, formatUnits } from "ethers";
 import { useWeb3 } from "../context/Web3Context";
 import { ADDRESSES, DAO_ABI, TOKEN_ABI } from "../contracts/config";
+import {
+  buildLeilaoProposal,
+  loadProposals,
+  saveProposal,
+  type StoredProposal,
+} from "../contracts/governor";
 import NetworkGuard from "../components/NetworkGuard";
 import Card from "../components/Card";
 import Stat from "../components/Stat";
 import Button from "../components/Button";
 import Alert from "../components/Alert";
+import ProposalCard from "../components/ProposalCard";
 
 const ZERO = "0x0000000000000000000000000000000000000000";
 
@@ -22,6 +29,11 @@ function GovernancaInner() {
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [ok, setOk] = useState<string | null>(null);
+
+  // Estado do formulário de proposta + lista persistida.
+  const [item, setItem] = useState("");
+  const [vendedor, setVendedor] = useState("");
+  const [proposals, setProposals] = useState<StoredProposal[]>([]);
 
   async function load() {
     if (!provider || !account) return;
@@ -55,6 +67,7 @@ function GovernancaInner() {
 
   useEffect(() => {
     load();
+    setProposals(loadProposals());
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [provider, account]);
 
@@ -76,6 +89,76 @@ function GovernancaInner() {
         setErr("Transação rejeitada na MetaMask.");
       } else {
         setErr(e?.reason ?? e?.shortMessage ?? "Falha ao delegar.");
+      }
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function criarProposta() {
+    setErr(null);
+    setOk(null);
+    if (!provider || !account) return;
+    if (!item.trim()) {
+      setErr("Informe o nome do item para leilão.");
+      return;
+    }
+    const dest = vendedor.trim() || account;
+    if (!/^0x[a-fA-F0-9]{40}$/.test(dest)) {
+      setErr("Endereço do vendedor inválido.");
+      return;
+    }
+    setBusy(true);
+    try {
+      const signer = await provider.getSigner();
+      const dao = new Contract(ADDRESSES.dao, DAO_ABI, signer);
+      const { targets, values, calldatas } = buildLeilaoProposal(
+        item.trim(),
+        dest
+      );
+      // Descrição única evita colisão de proposalId entre propostas iguais.
+      const description = `Leiloar "${item.trim()}" - vendedor ${dest} [${Date.now()}]`;
+
+      const tx = await dao.propose(targets, values, calldatas, description);
+      setOk("Proposta enviada. Aguardando confirmação…");
+      const receipt = await tx.wait();
+
+      // Recupera o proposalId do evento ProposalCreated emitido na transação.
+      let proposalId = "";
+      for (const log of receipt.logs) {
+        try {
+          const parsed = dao.interface.parseLog(log);
+          if (parsed?.name === "ProposalCreated") {
+            proposalId = parsed.args.proposalId.toString();
+            break;
+          }
+        } catch {
+          /* log de outro contrato */
+        }
+      }
+      if (!proposalId) throw new Error("Não foi possível obter o ID da proposta.");
+
+      const stored: StoredProposal = {
+        id: proposalId,
+        item: item.trim(),
+        vendedor: dest,
+        description,
+        targets,
+        values: values.map((v) => v.toString()),
+        calldatas,
+        txHash: tx.hash,
+        createdAt: Date.now(),
+      };
+      saveProposal(stored);
+      setProposals(loadProposals());
+      setItem("");
+      setVendedor("");
+      setOk("Proposta criada on-chain com sucesso! 🎉");
+    } catch (e: any) {
+      if (e?.code === "ACTION_REJECTED" || e?.code === 4001) {
+        setErr("Transação rejeitada na MetaMask.");
+      } else {
+        setErr(e?.reason ?? e?.shortMessage ?? "Falha ao criar proposta.");
       }
     } finally {
       setBusy(false);
@@ -132,14 +215,62 @@ function GovernancaInner() {
         )}
       </Card>
 
+      <Card title="Criar proposta de leilão">
+        <p className="hint" style={{ marginTop: 0 }}>
+          A proposta pede à DAO que crie um novo <code>LeilaoSimples</code>.
+          Depois de aprovada pela votação, pode ser executada.
+        </p>
+        <label className="field-label">Nome do item</label>
+        <input
+          className="input"
+          placeholder="Ex.: Notebook Dell"
+          value={item}
+          onChange={(e) => setItem(e.target.value)}
+          disabled={busy}
+        />
+        <label className="field-label" style={{ marginTop: 12 }}>
+          Endereço do vendedor (vazio = você)
+        </label>
+        <input
+          className="input"
+          placeholder={account ?? "0x..."}
+          value={vendedor}
+          onChange={(e) => setVendedor(e.target.value)}
+          disabled={busy}
+        />
+        <Button block onClick={criarProposta} disabled={busy}>
+          {busy ? "Enviando…" : "Criar proposta"}
+        </Button>
+      </Card>
+
+      <h3 className="section-title">Propostas</h3>
+      {proposals.length === 0 ? (
+        <Card>Nenhuma proposta criada por esta dApp ainda.</Card>
+      ) : (
+        <div className="proposals-grid">
+          {proposals.map((p) => (
+            <ProposalCard
+              key={p.id}
+              proposal={p}
+              onError={setErr}
+              onInfo={setOk}
+            />
+          ))}
+        </div>
+      )}
+
       <Card title="Como funciona" className="addr-card">
         <ol className="flow-list">
           <li>Detentores de CTK delegam o voto (ativando o poder de voto).</li>
-          <li>Uma proposta de novo leilão é criada na DAO.</li>
-          <li>A comunidade vota durante o período de votação.</li>
+          <li>Cria-se uma proposta de novo leilão (item + vendedor).</li>
           <li>
-            Aprovada e atingido o quórum, a execução chama{" "}
-            <code>executarDeployLeilao</code> e o leilão nasce on-chain.
+            Após o <em>voting delay</em>, a proposta fica <strong>Ativa</strong>{" "}
+            e a comunidade vota.
+          </li>
+          <li>
+            Atingido o quórum e com maioria a favor, ela fica{" "}
+            <strong>Aprovada</strong> e pode ser executada — a DAO publica o novo{" "}
+            <code>LeilaoSimples</code> on-chain.
           </li>
         </ol>
       </Card>
