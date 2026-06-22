@@ -43,11 +43,10 @@ function GovernancaInner() {
       const dao = new Contract(ADDRESSES.dao, DAO_ABI, provider);
       const token = new Contract(ADDRESSES.token, TOKEN_ABI, provider);
       const bn = await provider.getBlockNumber();
-      const [nm, vd, vp, q, vts, dec, del] = await Promise.all([
+      const [nm, vd, vp, vts, dec, del] = await Promise.all([
         dao.name(),
         dao.votingDelay(),
         dao.votingPeriod(),
-        dao.quorum(BigInt(Math.max(bn - 1, 0))),
         token.getVotes(account),
         token.decimals(),
         token.delegates(account),
@@ -55,9 +54,17 @@ function GovernancaInner() {
       setName(nm);
       setVotingDelay(`${vd} bloco(s)`);
       setVotingPeriod(`${vp} bloco(s)`);
-      setQuorum(`${formatUnits(q, dec)} CTK`);
       setVotes(formatUnits(vts, dec));
       setDelegatee(del);
+
+      // Quórum é lido à parte: exige um bloco no passado. Damos margem para
+      // evitar erro ERC5805FutureLookup quando o nó RPC está alguns blocos atrás.
+      try {
+        const q = await dao.quorum(BigInt(Math.max(bn - 10, 0)));
+        setQuorum(`${formatUnits(q, dec)} CTK`);
+      } catch {
+        setQuorum("indisponível");
+      }
     } catch (e: any) {
       setErr(e?.message ?? "Falha ao ler a DAO.");
     } finally {
