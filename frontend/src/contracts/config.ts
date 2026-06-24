@@ -53,6 +53,8 @@ export const DAO_ABI = [
   "function proposalSnapshot(uint256 proposalId) view returns (uint256)",
   "function hasVoted(uint256 proposalId, address account) view returns (bool)",
   "event ProposalCreated(uint256 proposalId, address proposer, address[] targets, uint256[] values, string[] signatures, bytes[] calldatas, uint256 voteStart, uint256 voteEnd, string description)",
+  // Emitido quando uma proposta aprovada é executada e a DAO cria um novo leilão.
+  "event LeilaoAprovadoECriado(address leilaoAddress, string item, address vendedor)",
 ];
 
 // ABI da função-alvo que a DAO chama nela mesma quando uma proposta é aprovada.

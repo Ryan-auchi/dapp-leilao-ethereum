@@ -328,11 +328,43 @@ a {
 }
 
 /* ---------- Governança / Propostas ---------- */
+.section-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
 .section-title {
   font-size: 1.3rem;
   font-weight: 900;
   letter-spacing: -0.5px;
   margin-top: 8px;
+}
+.origem-badge {
+  font-weight: 800;
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  padding: 4px 8px;
+  border: 2px solid var(--black);
+  background: var(--gray);
+  white-space: nowrap;
+}
+.leilao-item {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.leilao-item .grid-stats {
+  margin-bottom: 0;
+}
+.vote-warning {
+  background: #ffd23f;
+  border: 2px solid var(--black);
+  padding: 8px 10px;
+  color: var(--black);
+  font-weight: 700;
 }
 .proposals-grid {
   display: grid;

@@ -13,11 +13,19 @@ import Button from "./Button";
 
 interface Props {
   proposal: StoredProposal;
+  votingPower: number;
   onError: (msg: string) => void;
   onInfo: (msg: string) => void;
+  onChanged?: () => void;
 }
 
-export default function ProposalCard({ proposal, onError, onInfo }: Props) {
+export default function ProposalCard({
+  proposal,
+  votingPower,
+  onError,
+  onInfo,
+  onChanged,
+}: Props) {
   const { provider, account } = useWeb3();
   const [state, setState] = useState<number | null>(null);
   const [votes, setVotes] = useState({ a_favor: "0", contra: "0", abst: "0" });
@@ -60,6 +68,7 @@ export default function ProposalCard({ proposal, onError, onInfo }: Props) {
       await tx.wait();
       onInfo("Voto confirmado! ✅");
       await refresh();
+      onChanged?.();
     } catch (e: any) {
       if (e?.code === "ACTION_REJECTED" || e?.code === 4001) {
         onError("Voto rejeitado na MetaMask.");
@@ -87,6 +96,7 @@ export default function ProposalCard({ proposal, onError, onInfo }: Props) {
       await tx.wait();
       onInfo("Proposta executada! Novo leilão criado on-chain. 🎉");
       await refresh();
+      onChanged?.();
     } catch (e: any) {
       if (e?.code === "ACTION_REJECTED" || e?.code === 4001) {
         onError("Execução rejeitada na MetaMask.");
@@ -120,7 +130,7 @@ export default function ProposalCard({ proposal, onError, onInfo }: Props) {
         <span>🤚 Abstenção: {Number(votes.abst).toFixed(0)}</span>
       </div>
 
-      {isActive && !hasVoted && (
+      {isActive && !hasVoted && votingPower > 0 && (
         <div className="vote-actions">
           <Button onClick={() => votar(VOTE_SUPPORT.A_FAVOR)} disabled={busy}>
             A favor
@@ -140,6 +150,13 @@ export default function ProposalCard({ proposal, onError, onInfo }: Props) {
             Abster
           </Button>
         </div>
+      )}
+
+      {isActive && !hasVoted && votingPower <= 0 && (
+        <p className="hint vote-warning">
+          ⚠️ Você não tem poder de voto. É preciso ter CTK e delegá-lo antes de
+          votar (veja o card "Seu poder de voto" acima).
+        </p>
       )}
 
       {isActive && hasVoted && (

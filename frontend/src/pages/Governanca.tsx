@@ -4,6 +4,7 @@ import { useWeb3 } from "../context/Web3Context";
 import { ADDRESSES, DAO_ABI, TOKEN_ABI } from "../contracts/config";
 import {
   buildLeilaoProposal,
+  fetchProposalsFromChain,
   loadProposals,
   saveProposal,
   type StoredProposal,
@@ -30,10 +31,33 @@ function GovernancaInner() {
   const [err, setErr] = useState<string | null>(null);
   const [ok, setOk] = useState<string | null>(null);
 
-  // Estado do formulário de proposta + lista persistida.
+  // Estado do formulário de proposta + lista lida da blockchain.
   const [item, setItem] = useState("");
   const [vendedor, setVendedor] = useState("");
   const [proposals, setProposals] = useState<StoredProposal[]>([]);
+  const [loadingProposals, setLoadingProposals] = useState(true);
+
+  // Lê as propostas da blockchain (fonte da verdade) e mescla com qualquer
+  // proposta salva localmente — assim todo mundo vê todas as propostas.
+  async function carregarPropostas() {
+    setLoadingProposals(true);
+    try {
+      // Usa a MetaMask (sem CORS) quando conectada; senão, RPC público.
+      const onchain = await fetchProposalsFromChain(provider);
+      const porId = new Map<string, StoredProposal>();
+      // local primeiro; on-chain sobrescreve (dado mais confiável).
+      for (const p of loadProposals()) porId.set(p.id, p);
+      for (const p of onchain) porId.set(p.id, p);
+      setProposals(
+        [...porId.values()].sort((a, b) => b.createdAt - a.createdAt)
+      );
+    } catch {
+      // Se a leitura on-chain falhar, ao menos mostra o cache local.
+      setProposals(loadProposals());
+    } finally {
+      setLoadingProposals(false);
+    }
+  }
 
   async function load() {
     if (!provider || !account) return;
@@ -74,7 +98,7 @@ function GovernancaInner() {
 
   useEffect(() => {
     load();
-    setProposals(loadProposals());
+    carregarPropostas();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [provider, account]);
 
@@ -157,7 +181,7 @@ function GovernancaInner() {
         createdAt: Date.now(),
       };
       saveProposal(stored);
-      setProposals(loadProposals());
+      await carregarPropostas();
       setItem("");
       setVendedor("");
       setOk("Proposta criada on-chain com sucesso! 🎉");
@@ -250,17 +274,30 @@ function GovernancaInner() {
         </Button>
       </Card>
 
-      <h3 className="section-title">Propostas</h3>
-      {proposals.length === 0 ? (
-        <Card>Nenhuma proposta criada por esta dApp ainda.</Card>
+      <div className="section-head">
+        <h3 className="section-title">Propostas</h3>
+        <button
+          className="link-btn"
+          onClick={carregarPropostas}
+          disabled={loadingProposals}
+        >
+          {loadingProposals ? "carregando…" : "atualizar lista"}
+        </button>
+      </div>
+      {loadingProposals && proposals.length === 0 ? (
+        <Card>Lendo propostas da blockchain…</Card>
+      ) : proposals.length === 0 ? (
+        <Card>Nenhuma proposta encontrada na DAO ainda.</Card>
       ) : (
         <div className="proposals-grid">
           {proposals.map((p) => (
             <ProposalCard
               key={p.id}
               proposal={p}
+              votingPower={Number(votes)}
               onError={setErr}
               onInfo={setOk}
+              onChanged={carregarPropostas}
             />
           ))}
         </div>
