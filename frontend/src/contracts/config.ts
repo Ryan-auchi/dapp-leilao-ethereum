@@ -35,6 +35,9 @@ export const TOKEN_ABI = [
   "function getVotes(address) view returns (uint256)",
   "function delegates(address) view returns (address)",
   "function delegate(address delegatee)",
+  "function owner() view returns (address)",
+  "function mint(address to, uint256 amount)",
+  "function totalSupply() view returns (uint256)",
 ];
 
 export const DAO_ABI = [

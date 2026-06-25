@@ -11,7 +11,6 @@ import Alert from "../components/Alert";
 
 const ZERO = "0x0000000000000000000000000000000000000000";
 
-// Um leilão da lista: o original (T02) ou um criado pela DAO (T03/T04).
 interface LeilaoRef {
   address: string;
   origem: "T02" | "DAO";
@@ -22,9 +21,9 @@ interface LeilaoData {
   maiorLance: string;
   maiorLancador: string;
   encerrado: boolean;
+  owner: string;
 }
 
-// Card de um único leilão: lê os dados on-chain e permite dar lance.
 function LeilaoItem({
   leilao,
   onError,
@@ -45,17 +44,19 @@ function LeilaoItem({
     setLoading(true);
     try {
       const c = new Contract(leilao.address, LEILAO_ABI, provider);
-      const [item, maior, lancador, encerrado] = await Promise.all([
+      const [item, maior, lancador, encerrado, owner] = await Promise.all([
         c.itemLeiloado(),
         c.maiorLance(),
         c.maiorLancador(),
         c.leilaoEncerrado(),
+        c.owner(),
       ]);
       setData({
         item,
         maiorLance: formatEther(maior),
         maiorLancador: lancador,
         encerrado,
+        owner,
       });
     } catch (e: any) {
       onError(e?.shortMessage ?? "Falha ao ler o leilão.");
@@ -102,10 +103,38 @@ function LeilaoItem({
     }
   }
 
+  async function encerrarLeilao() {
+    if (!provider) return;
+    setSending(true);
+    try {
+      const signer = await provider.getSigner();
+      const c = new Contract(leilao.address, LEILAO_ABI, signer);
+      const tx = await c.encerrarLeilao();
+      onInfo("Encerrando leilão. Aguardando confirmação…");
+      await tx.wait();
+      onInfo("Leilão encerrado! O ETH do maior lance foi transferido ao vendedor.");
+      await load();
+      await refreshBalance();
+    } catch (e: any) {
+      if (e?.code === "ACTION_REJECTED" || e?.code === 4001) {
+        onError("Transação rejeitada na MetaMask.");
+      } else {
+        onError(e?.reason ?? e?.shortMessage ?? "Falha ao encerrar o leilão.");
+      }
+    } finally {
+      setSending(false);
+    }
+  }
+
   const isLeader =
     account &&
     data &&
     data.maiorLancador.toLowerCase() === account.toLowerCase();
+
+  const isOwner =
+    account &&
+    data &&
+    data.owner.toLowerCase() === account.toLowerCase();
 
   return (
     <Card className="leilao-item">
@@ -133,9 +162,7 @@ function LeilaoItem({
               value={
                 data.maiorLancador === ZERO
                   ? "Nenhum ainda"
-                  : `${data.maiorLancador.slice(0, 6)}…${data.maiorLancador.slice(
-                      -4
-                    )}`
+                  : `${data.maiorLancador.slice(0, 6)}…${data.maiorLancador.slice(-4)}`
               }
             />
           </div>
@@ -167,6 +194,12 @@ function LeilaoItem({
               <p className="hint">
                 O lance anterior é devolvido automaticamente pelo contrato.
               </p>
+
+              {isOwner && (
+                <Button block variant="dark" onClick={encerrarLeilao} disabled={sending}>
+                  {sending ? "Processando…" : "Encerrar leilão (somente dono)"}
+                </Button>
+              )}
             </>
           )}
         </>
@@ -197,12 +230,10 @@ function LeilaoInner() {
 
   const carregar = useCallback(async () => {
     setLoading(true);
-    // O leilão original (T02) está sempre na lista.
     const lista: LeilaoRef[] = [{ address: ADDRESSES.leilao, origem: "T02" }];
     try {
       const criados = await fetchLeiloesFromChain(provider);
       for (const c of criados) {
-        // Evita duplicar caso algum endereço se repita.
         if (!lista.some((l) => l.address.toLowerCase() === c.address.toLowerCase())) {
           lista.push({ address: c.address, origem: "DAO" });
         }

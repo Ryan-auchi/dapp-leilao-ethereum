@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Contract, formatUnits } from "ethers";
+import { Contract, formatUnits, parseUnits } from "ethers";
 import { useWeb3 } from "../context/Web3Context";
 import { ADDRESSES, DAO_ABI, TOKEN_ABI } from "../contracts/config";
 import {
@@ -37,6 +37,11 @@ function GovernancaInner() {
   const [proposals, setProposals] = useState<StoredProposal[]>([]);
   const [loadingProposals, setLoadingProposals] = useState(true);
 
+  // Painel de mint (visível só pro dono do token)
+  const [tokenOwner, setTokenOwner] = useState<string | null>(null);
+  const [mintTo, setMintTo] = useState("");
+  const [mintAmount, setMintAmount] = useState("");
+
   // Lê as propostas da blockchain (fonte da verdade) e mescla com qualquer
   // proposta salva localmente — assim todo mundo vê todas as propostas.
   async function carregarPropostas() {
@@ -67,19 +72,21 @@ function GovernancaInner() {
       const dao = new Contract(ADDRESSES.dao, DAO_ABI, provider);
       const token = new Contract(ADDRESSES.token, TOKEN_ABI, provider);
       const bn = await provider.getBlockNumber();
-      const [nm, vd, vp, vts, dec, del] = await Promise.all([
+      const [nm, vd, vp, vts, dec, del, tOwner] = await Promise.all([
         dao.name(),
         dao.votingDelay(),
         dao.votingPeriod(),
         token.getVotes(account),
         token.decimals(),
         token.delegates(account),
+        token.owner(),
       ]);
       setName(nm);
       setVotingDelay(`${vd} bloco(s)`);
       setVotingPeriod(`${vp} bloco(s)`);
       setVotes(formatUnits(vts, dec));
       setDelegatee(del);
+      setTokenOwner(tOwner);
 
       // Quórum é lido à parte: exige um bloco no passado. Damos margem para
       // evitar erro ERC5805FutureLookup quando o nó RPC está alguns blocos atrás.
@@ -196,7 +203,45 @@ function GovernancaInner() {
     }
   }
 
+  async function mintCTK() {
+    setErr(null);
+    setOk(null);
+    if (!provider || !account) return;
+    const dest = mintTo.trim() || account;
+    if (!/^0x[a-fA-F0-9]{40}$/.test(dest)) {
+      setErr("Endereço de destino inválido.");
+      return;
+    }
+    if (!mintAmount || Number(mintAmount) <= 0) {
+      setErr("Informe a quantidade de CTK a mintar.");
+      return;
+    }
+    setBusy(true);
+    try {
+      const signer = await provider.getSigner();
+      const token = new Contract(ADDRESSES.token, TOKEN_ABI, signer);
+      const dec = await token.decimals();
+      const tx = await token.mint(dest, parseUnits(mintAmount, dec));
+      setOk("Mint enviado. Aguardando confirmação…");
+      await tx.wait();
+      setOk(`${mintAmount} CTK mintados para ${dest.slice(0, 6)}…${dest.slice(-4)}. ✅`);
+      setMintTo("");
+      setMintAmount("");
+      await load();
+    } catch (e: any) {
+      if (e?.code === "ACTION_REJECTED" || e?.code === 4001) {
+        setErr("Transação rejeitada na MetaMask.");
+      } else {
+        setErr(e?.reason ?? e?.shortMessage ?? "Falha ao mintar.");
+      }
+    } finally {
+      setBusy(false);
+    }
+  }
+
   const semDelegacao = delegatee === ZERO;
+  const isTokenOwner = tokenOwner !== null && account !== null &&
+    tokenOwner.toLowerCase() === account.toLowerCase();
 
   return (
     <div className="page">
@@ -301,6 +346,37 @@ function GovernancaInner() {
             />
           ))}
         </div>
+      )}
+
+      {isTokenOwner && (
+        <Card title="Mintar CTK (somente dono do contrato)">
+          <p className="hint" style={{ marginTop: 0 }}>
+            Você é o dono do contrato CTK. Distribua tokens para quem precisar votar.
+          </p>
+          <label className="field-label">Endereço de destino (vazio = você)</label>
+          <input
+            className="input"
+            placeholder={account ?? "0x..."}
+            value={mintTo}
+            onChange={(e) => setMintTo(e.target.value)}
+            disabled={busy}
+          />
+          <label className="field-label" style={{ marginTop: 12 }}>
+            Quantidade de CTK
+          </label>
+          <input
+            className="input"
+            type="number"
+            min="1"
+            placeholder="Ex.: 100"
+            value={mintAmount}
+            onChange={(e) => setMintAmount(e.target.value)}
+            disabled={busy}
+          />
+          <Button block onClick={mintCTK} disabled={busy}>
+            {busy ? "Processando…" : "Mintar CTK"}
+          </Button>
+        </Card>
       )}
 
       <Card title="Como funciona" className="addr-card">
