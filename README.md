@@ -69,6 +69,41 @@ A DAO permite que detentores do token `CuradoriaToken` votem em propostas. Quand
 
 ---
 
+## Trabalho 04 — Frontend Web3 (React + Vite)
+
+Interface descentralizada que integra os três contratos já implantados na Sepolia.
+Todo o código está na pasta [`frontend/`](frontend/).
+
+### O que foi feito
+
+- **Conexão MetaMask** com detecção automática da rede Sepolia (botão para trocar/adicionar a rede)
+- **Dashboard**: endereço da carteira, saldo ETH, saldo do token CTK e poder de voto
+- **Leilão**: leitura de `itemLeiloado`, `maiorLance`, `maiorLancador`, `leilaoEncerrado` e envio de lance via `darLance()` (payable)
+- **Governança**: parâmetros do Governor (voting delay, voting period, quórum) e delegação de voto (`delegate`)
+- **Tratamento de erros**: MetaMask ausente, rede incorreta e transações rejeitadas/saldo insuficiente
+- Identidade visual **neo-brutalista** (laranja, branco e preto), responsiva para desktop e mobile
+- **React Router** com 4 telas: Landing, Dashboard, Leilão e Governança
+- Componentes reutilizáveis (`Button`, `Card`, `Stat`, `Alert`, `Navbar`, `NetworkGuard`) e **TypeScript**
+
+### Stack
+
+- React 18 + Vite + TypeScript
+- ethers.js v6
+- React Router v6
+
+### Como rodar o frontend
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+Abra o endereço exibido (ex.: http://localhost:5173), conecte a MetaMask na rede
+**Sepolia** e use ETH de teste de um faucet.
+
+---
+
 ## Tecnologias
 
 - Solidity 0.8.28
@@ -121,6 +156,9 @@ npx hardhat ignition deploy ignition/modules/Curadoria.ts --network sepolia
 - `maiorLancador` — consulta quem está ganhando
 - `leilaoEncerrado` — verifica se o leilão foi encerrado
 
-## Integrantes
+## Integrantes (Grupo 02)
 
-- (adicionar nomes do grupo)
+- Mateus Castro
+- Yago Braga
+- Francisco Junio
+- Ryan
